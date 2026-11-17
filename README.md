@@ -1,57 +1,131 @@
-# Leventa — Flutter Mobile Documentation
+<div align="center">
 
-Dokumentasi ini adalah sumber acuan untuk membangun mobile app Property Management System (PMS) menggunakan Flutter. Backend companion: Go + Fiber + PostgreSQL.
+<img src="assets/logo/leventa_icon.png" alt="Leventa logo" width="96" />
 
-> **Nama produk kerja: Leventa.** Nama ini dipakai konsisten di aplikasi, app title, README, package metadata yang relevan, dan mock/demo data. Nama dapat diganti jika user meminta. Ini belum merupakan pemeriksaan merek dagang.
+# Leventa
 
-## Mulai dari sini
+**Mobile app for an internal property listing system.**
+Guests browse listings, Marketing manages them, Admin runs the whole operation.
 
-1. `CLAUDE.md` — instruksi khusus Claude Code, termasuk skill wajib.
-2. `AGENTS.md` — instruksi umum coding agent.
-3. `docs/PRODUCT_SCOPE.md` — tujuan produk, role, batasan mobile.
-4. `docs/SCREEN_SPEC.md` — screen dan user flow.
-5. `docs/DESIGN_SYSTEM.md` — brand, theme, tokens, responsive.
-6. `docs/APP_ARCHITECTURE.md` — Flutter architecture dan package policy.
-7. `docs/API_INTEGRATION.md` — integrasi dengan Go backend.
-8. `docs/STATE_AND_ROUTING.md` — state, auth, role-based navigation.
-9. `docs/SECURITY_PRIVACY.md` — perlindungan data dan akses.
-10. `docs/IMPLEMENTATION_PLAN.md` — urutan implementasi.
-11. `docs/TESTING_QA.md` — pengujian dan Definition of Done.
-12. `docs/DECISIONS.md` — keputusan yang sudah diketahui dan hal yang belum dikonfirmasi.
+![Flutter](https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)
+![Backend](https://img.shields.io/badge/Backend-Go%20%2B%20Fiber-00ADD8?logo=go&logoColor=white)
 
-## Prinsip utama
+</div>
 
-- Sistem bersifat internal: customer adalah guest tanpa akun, user login hanya Marketing (`sales`) dan Admin. Tidak ada chat; komunikasi lewat WhatsApp.
-- Jangan membuat ulang desain yang sudah ada tanpa audit terlebih dahulu.
-- Aplikasi otomatis masuk mode guest; Marketing dan Admin login dari dalam aplikasi. Akun hanya dibuat oleh Admin.
-- Screen untuk alur yang sudah dihapus backend (registrasi, favorites, inquiry, notifikasi customer, lead, follow-up, survey) dihapus (sudah disetujui).
-- Hormati rate limit backend: debounce pencarian, jangan retry otomatis saat 429.
-- Jangan mengarang endpoint atau payload. Cocokkan dengan backend OpenAPI/Swagger aktual.
-- Backend adalah sumber kebenaran untuk authorization dan data privacy.
-- Implementasi bertahap, satu vertical slice yang dapat diuji setiap tahap.
-- Tidak melakukan overengineering.
+## About
 
-## Menjalankan aplikasi
+Leventa is the mobile front end of a property listing system used by an agency. Customers browse available properties without an account and reach the responsible Marketing agent through WhatsApp. Staff log in as **Marketing** or **Admin** to manage listings, owners, ownership documents, deals and commissions.
 
-```bash
-flutter pub get
-# Emulator Android → backend lokal di port 8080 (default)
-flutter run
-# Backend lain (HTTPS untuk staging/production)
-flutter run --dart-define=API_BASE_URL=https://api.example.com/api/v1
-```
+It consumes a Go + Fiber + PostgreSQL REST API. Authorization and privacy are enforced by the backend; the app only reflects what the backend returns.
 
-- Token login hanya disimpan di `flutter_secure_storage` (Keychain / Android Keystore). Guest tidak menyimpan token.
-- Cache: memori dengan TTL per sesi (`lib/core/cache`), master data publik juga di disk (`shared_preferences`), foto listing di cache gambar (`cached_network_image`). Data owner dan dokumen kepemilikan tidak pernah di-cache.
-- HTTP tanpa TLS hanya diizinkan ke `10.0.2.2`/`localhost` (Android `network_security_config.xml`).
+<!-- Add screenshots here, e.g. a table of 3-4 images from docs/screenshots/ -->
 
-## Struktur
+## Features
+
+**Guest (no account)**
+- Browse and search properties with filters (type, sale/rent, location, price, area, bedrooms, facilities) and sorting
+- Property detail with photo gallery
+- Contact the listing's Marketing agent via WhatsApp
+
+**Marketing**
+- Create and edit own listings, upload photos, change listing status
+- Manage owner details and ownership documents (PDF/JPEG/PNG)
+- Read-only view of co-listed properties, with availability toggle and document download
+- Read-only view of own deals and commissions
+- Update own WhatsApp number
+
+**Admin**
+- Create and manage user accounts, roles and status
+- Assign co-listing Marketing and transfer ownership
+- Record Deal / Cancel outcomes and manage commissions
+- Manage master data (provinces, cities, districts, facilities)
+
+## Highlights
+
+- **One login, no role picker.** The role comes from the backend session, never from user input.
+- **Privacy by design.** Owner data, exact addresses and ownership documents are never cached or logged, and the backend only sends them to authorized roles.
+- **Token handling.** Access/refresh tokens are kept in secure storage (Keychain / Keystore); expired tokens are refreshed once, then the user is returned to login.
+- **Caching with TTL.** In-memory cache per session, public master data also on disk, stale-while-revalidate for public lists.
+- **Rate-limit aware.** Debounced search, no automatic retry on `429`.
+- **Responsive.** Phone and tablet layouts.
+
+## Tech stack
+
+| Area | Choice |
+|---|---|
+| Framework | Flutter, Dart `^3.12.2` |
+| State & routing | [GetX](https://pub.dev/packages/get) |
+| Networking | [Dio](https://pub.dev/packages/dio) |
+| Secure storage | `flutter_secure_storage` |
+| Local preferences | `shared_preferences` |
+| Images & files | `cached_network_image`, `image_picker`, `file_picker`, `share_plus` |
+| Other | `url_launcher`, `intl`, `lucide_icons_flutter` |
+
+## Project structure
 
 ```text
 lib/
-  app/        theme (token Leventa), routes + session watcher
-  core/       config, network (ApiClient), cache, storage, utils, widgets bersama
-  features/   auth, guest, properties, marketing, documents, deals, admin, master_data
+├── main.dart
+├── app/            # theme (design tokens), routes, session guard
+├── core/           # config, network client, cache, storage, utils, shared widgets
+└── features/
+    ├── auth/           # login, session
+    ├── guest/          # guest shell, filters
+    ├── properties/     # models, query, repository, detail
+    ├── marketing/      # listings, owner, photos
+    ├── documents/      # ownership documents
+    ├── deals/          # deals & commissions
+    ├── admin/          # users, master data, listing panel
+    └── master_data/    # provinces, cities, districts, facilities
 ```
 
-Cek kualitas: `dart format .`, `flutter analyze`, `flutter test`.
+Product, API and architecture notes are in [`docs/`](docs/).
+
+## Getting started
+
+### Prerequisites
+
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (Dart `^3.12.2`)
+- Android Studio / Android SDK, or Xcode for iOS
+- A running Leventa backend
+
+### Install
+
+```bash
+git clone https://github.com/IlhamGhaza/leventa-fe
+cd leventa-fe
+flutter pub get
+```
+
+### Run
+
+```bash
+# Android emulator with the backend on localhost:8080 (default)
+flutter run
+
+# Any other backend (use HTTPS outside local development)
+flutter run --dart-define=API_BASE_URL=https://api.example.com/api/v1
+```
+
+The default `API_BASE_URL` is `http://10.0.2.2:8080/api/v1` (the emulator's alias for the host machine). On a physical device, use your machine's LAN IP. Plain HTTP is only allowed for `10.0.2.2` and `localhost`.
+
+Postman collection and environment for the API are in [`docs/`](docs/).
+
+### Build
+
+```bash
+flutter build apk --dart-define=API_BASE_URL=https://api.example.com/api/v1
+```
+
+### Test
+
+```bash
+dart format .
+flutter analyze
+flutter test
+```
+
+## Author
+
+**Ilham Ghazali** — [@IlhamGhaza](https://github.com/IlhamGhaza)
